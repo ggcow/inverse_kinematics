@@ -25,7 +25,7 @@ def inverse_kinematics(joint_angles, link_lengths, target_position):
     return joint_angles
 
 pygame.init()
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
 
 running = True
 while running:
@@ -34,6 +34,10 @@ while running:
             running = False
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             running = False
+        #resize
+        if event.type == pygame.VIDEORESIZE:
+            SCREEN_WIDTH, SCREEN_HEIGHT = event.w, event.h
+            SCREEN_DIMENSIONS = numpy.array([SCREEN_WIDTH, SCREEN_HEIGHT])
 
     mouse_position = numpy.array(pygame.mouse.get_pos()) - SCREEN_DIMENSIONS / 2
 
