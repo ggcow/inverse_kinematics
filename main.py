@@ -22,7 +22,7 @@ def inverse_kinematics(joint_angles, link_lengths, target_position):
     inverted_jacobian = numpy.array([
         [l2 * cos(a1 + a2), l1 * sin(a1 + a2)],
         [-l1 * cos(a1) - l2 * cos(a1 + a2), -l1 * sin(a1) - l2 * sin(a1 + a2)],
-    ]) / (sin(a2) * l1 * l2 or 1)
+    ]) / (sin(a2) * l1 * l2 or .01)
     end_effector = numpy.array([l2 * cos(a1+a2) + l1 * cos(a1), l2 * sin(a1+a2) + l1 * sin(a1)])
     return joint_angles + inverted_jacobian.dot(target_position - end_effector) * 0.1
 
@@ -44,13 +44,14 @@ while running:
     mouse_position = numpy.array(pygame.mouse.get_pos()) - SCREEN_DIMENSIONS / 2
     dist = numpy.linalg.norm(mouse_position) ** 2
     if dist > sum(LINK_LENGTHS)**2:
-        mouse_position = mouse_position / numpy.sqrt(dist) * sum(LINK_LENGTHS)
+        mouse_position *= (sum(LINK_LENGTHS) - 4) / numpy.sqrt(dist) 
     LINK_ANGLES = inverse_kinematics(LINK_ANGLES, LINK_LENGTHS, mouse_position)
         
 
     x, y = SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2
     total_angle = 0
     screen.fill((0, 0, 0))
+    pygame.draw.circle(screen, (100, 100, 0), (mouse_position + SCREEN_DIMENSIONS / 2), 10)
     for angle, length in zip(LINK_ANGLES, LINK_LENGTHS):
         total_angle += angle
         pygame.draw.circle(screen, (255,) * 3, (x, y), 10)
