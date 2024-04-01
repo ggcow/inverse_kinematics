@@ -1,33 +1,30 @@
 import pygame
-from math import sin, cos, atan2
-import numpy
+from math import sin, cos
+import autograd.numpy as np
+from autograd import jacobian
+from itertools import accumulate
 
 
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 800
+def cost(angles):
+    end_x = LINK_LENGTHS.dot(np.cos(angles))
+    end_y = LINK_LENGTHS.dot(np.sin(angles))
+    return np.array([end_x, end_y])
+jacobian_cost = jacobian(cost)
 
-SCREEN_DIMENSIONS = numpy.array([SCREEN_WIDTH, SCREEN_HEIGHT])
 
-LINK_ANGLES = numpy.array([0.1, 0.1])
-LINK_LENGTHS = [150, 100]
+SCREEN_DIMENSIONS = np.array([800, 600])
+
+N = 1
+LINK_ANGLES = np.zeros(N)
+LINK_LENGTHS = np.ones(N) * 100
 
 # 60 FPS
 FPS = 60
 clock = pygame.time.Clock()
 
 
-def inverse_kinematics(joint_angles, link_lengths, target_position):
-    a1, a2 = joint_angles
-    l1, l2 = link_lengths
-    inverted_jacobian = numpy.array([
-        [l2 * cos(a1 + a2), l1 * sin(a1 + a2)],
-        [-l1 * cos(a1) - l2 * cos(a1 + a2), -l1 * sin(a1) - l2 * sin(a1 + a2)],
-    ]) / (sin(a2) * l1 * l2 or .01)
-    end_effector = numpy.array([l2 * cos(a1+a2) + l1 * cos(a1), l2 * sin(a1+a2) + l1 * sin(a1)])
-    return joint_angles + inverted_jacobian.dot(target_position - end_effector) * 0.1
-
 pygame.init()
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
+screen = pygame.display.set_mode(SCREEN_DIMENSIONS, pygame.RESIZABLE)
 
 running = True
 while running:
@@ -36,30 +33,31 @@ while running:
             running = False
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             running = False
-        #resize
         if event.type == pygame.VIDEORESIZE:
-            SCREEN_WIDTH, SCREEN_HEIGHT = event.w, event.h
-            SCREEN_DIMENSIONS = numpy.array([SCREEN_WIDTH, SCREEN_HEIGHT])
+            SCREEN_DIMENSIONS = np.array([event.w, event.h])
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 4:
+                LINK_LENGTHS *= 1.1
+            if event.button == 5:
+                LINK_LENGTHS *= 0.9
+        if event.type == pygame.KEYDOWN and event.unicode == "+":
+            LINK_ANGLES = np.append(LINK_ANGLES, 0)
+            LINK_LENGTHS = np.append(LINK_LENGTHS, 100)
+        if event.type == pygame.KEYDOWN and event.unicode == "-" and len(LINK_ANGLES) > 1:
+            LINK_ANGLES = np.delete(LINK_ANGLES, -1)
+            LINK_LENGTHS = np.delete(LINK_LENGTHS, -1)
 
-    mouse_position = numpy.array(pygame.mouse.get_pos()) - SCREEN_DIMENSIONS / 2
-    dist = numpy.linalg.norm(mouse_position) ** 2
-    if dist > sum(LINK_LENGTHS)**2:
-        mouse_position *= (sum(LINK_LENGTHS) - 4) / numpy.sqrt(dist) 
-    LINK_ANGLES = inverse_kinematics(LINK_ANGLES, LINK_LENGTHS, mouse_position)
+    ## Inverse Kinematics
+    mouse_position = np.array(pygame.mouse.get_pos()) - SCREEN_DIMENSIONS / 2
+    if (dist := np.linalg.norm(mouse_position)) > sum(LINK_LENGTHS):
+        mouse_position *= sum(LINK_LENGTHS) / dist
+    LINK_ANGLES += np.cumsum(np.linalg.pinv(jacobian_cost(LINK_ANGLES)).dot(mouse_position - cost(LINK_ANGLES))) * 0.1
         
-
-    x, y = SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2
-    total_angle = 0
+    ## Graphics
     screen.fill((0, 0, 0))
     pygame.draw.circle(screen, (100, 100, 0), (mouse_position + SCREEN_DIMENSIONS / 2), 10)
-    for angle, length in zip(LINK_ANGLES, LINK_LENGTHS):
-        total_angle += angle
-        pygame.draw.circle(screen, (255,) * 3, (x, y), 10)
-        x2 = x + cos(total_angle) * length
-        y2 = y + sin(total_angle) * length
-        pygame.draw.line(screen, (255,) * 3, (x, y), (x2, y2), 5)
-        x, y = x2, y2
-    pygame.draw.circle(screen, (255,) * 3, (x, y), 10)
+    points = list(accumulate(zip(LINK_ANGLES, LINK_LENGTHS), lambda prev, val: prev + np.array([cos(val[0]) * val[1], sin(val[0]) * val[1]]), initial=SCREEN_DIMENSIONS / 2))
+    pygame.draw.lines(screen, (255, 255, 255), False, points, 5)
     pygame.display.update()
 
     clock.tick(FPS)
