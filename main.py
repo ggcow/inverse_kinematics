@@ -42,7 +42,7 @@ while running:
                 LINK_LENGTHS *= 0.9
         if event.type == pygame.KEYDOWN and event.unicode == "+":
             LINK_ANGLES = np.append(LINK_ANGLES, 0)
-            LINK_LENGTHS = np.append(LINK_LENGTHS, 100)
+            LINK_LENGTHS = np.append(LINK_LENGTHS, LINK_LENGTHS[-1])
         if event.type == pygame.KEYDOWN and event.unicode == "-" and len(LINK_ANGLES) > 1:
             LINK_ANGLES = np.delete(LINK_ANGLES, -1)
             LINK_LENGTHS = np.delete(LINK_LENGTHS, -1)
